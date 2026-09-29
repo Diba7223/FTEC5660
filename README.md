@@ -76,13 +76,7 @@ flowchart TD
 
 ### Solution
 
-The chain splits receipt understanding into two heterogeneous jobs: reading pixels and doing arithmetic. 
-
-Stage 1 sends every receipt to `deepseek-v4-flash-vision-exp` in parallel and asks only for a narrow structured record (item lines, discount lines with their printed signs, the printed SUBTOTAL, the ROUNDING line, and the final payment line), explicitly forbidding the model from computing any total. 
-
-Stage 2 adds reliability rather than trusting a single pass: malformed output goes through a repair prompt, and every receipt is read a second time by a deliberately different prompt that ignores products and reports only SUBTOTAL, the discount total and the payment. When the two readings disagree, the tie is broken deterministically first — on any receipt, SUBTOTAL plus the discounts must equal the sum of the original item prices, so the item prices vote for the consistent reading — and only if that fails is the image sent back with both candidates for an adjudicated re-read, after which the median is taken. 
-
-Stage 3 performs the aggregation in deterministic Python with `Decimal`: question one sums each receipt's `amount_paid`, question two sums `subtotal + sum(abs(discounts))` while deliberately excluding the rounding line, because LLM arithmetic is unreliable and because keeping the model away from the final number guarantees the response contains exactly one amount. This follows the prompt-chaining principle of narrow, checkable stages with deterministic processing in between: the JSON record is the explicit interface between stages, the numeric work is fully auditable, and accuracy on unseen receipts depends on extraction quality rather than on the model's ability to add.
+The chain splits receipt understanding into two heterogeneous jobs: reading pixels and doing arithmetic. Stage 1 sends every receipt to `deepseek-v4-flash-vision-exp` in parallel and asks only for a narrow structured record (item lines, discount lines with their printed signs, the printed SUBTOTAL, the ROUNDING line, and the final payment line), explicitly forbidding the model from computing any total. Stage 2 adds reliability rather than trusting a single pass: malformed output goes through a repair prompt, and every receipt is read a second time by a deliberately different prompt that ignores products and reports only SUBTOTAL, the discount total and the payment. When the two readings disagree, the tie is broken deterministically first — on any receipt, SUBTOTAL plus the discounts must equal the sum of the original item prices, so the item prices vote for the consistent reading — and only if that fails is the image sent back with both candidates for an adjudicated re-read, after which the median is taken. Stage 3 performs the aggregation in deterministic Python with `Decimal`: question one sums each receipt's `amount_paid`, question two sums `subtotal + sum(abs(discounts))` while deliberately excluding the rounding line, because LLM arithmetic is unreliable and because keeping the model away from the final number guarantees the response contains exactly one amount. This follows the prompt-chaining principle of narrow, checkable stages with deterministic processing in between: the JSON record is the explicit interface between stages, the numeric work is fully auditable, and accuracy on unseen receipts depends on extraction quality rather than on the model's ability to add.
 
 ### Setup
 
@@ -90,7 +84,7 @@ Stage 3 performs the aggregation in deterministic Python with `Decimal`: questio
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env      # then paste your key after DEEPSEEK_API_KEY=
+echo "DEEPSEEK_API_KEY=your_key_here" > .env   # then replace your_key_here with your real key
 python3 hw1.py --image-folder public_test
 cat results.csv
 ```
